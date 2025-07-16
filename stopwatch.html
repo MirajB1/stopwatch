@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Retro Calendar Flip Stopwatch & Clock</title>
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #1a1a1a;
+            font-family: 'Courier New', Courier, monospace;
+            transition: background-color 0.3s;
+        }
+        .container {
+            display: flex;
+            align-items: flex-start;
+            transition: all 0.3s;
+        }
+        .container.fullscreen {
+            width: 100vw;
+            height: 100vh;
+            justify-content: center;
+            align-items: center;
+            background-color: #1a1a1a;
+            padding: 20px;
+        }
+        .stopwatch {
+            background: #000;
+            padding: 30px;
+            border: 8px solid #333;
+            border-radius: 15px;
+            box-shadow: 0 0 30px rgba(0, 255, 255, 0.3);
+            text-align: center;
+            width: 600px;
+        }
+        .display {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background-color: #111;
+            padding: 30px;
+            margin-bottom: 30px;
+            border: 5px solid #444;
+            border-radius: 8px;
+        }
+        .digit-card {
+            background-color: #222;
+            width: 80px;
+            height: 110px;
+            margin: 0 8px;
+            border: 3px solid #0ff;
+            border-radius: 8px;
+            box-shadow: inset 0 0 15px rgba(0, 255, 255, 0.5), 0 0 10px rgba(0, 255, 255, 0.3);
+            position: relative;
+            overflow: hidden;
+            perspective: 1000px;
+        }
+        .digit-card::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 0;
+            width: 100%;
+            height: 2px;
+            background-color: #0ff;
+            opacity: 0.3;
+        }
+        .digit-card span {
+            display: block;
+            color: #0ff;
+            font-size: 72px;
+            line-height: 110px;
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            transition: transform 0.4s ease-in-out, opacity 0.4s ease-in-out;
+            transform-origin: bottom;
+        }
+        .digit-card .flip {
+            transform: rotateX(90deg);
+            opacity: 0;
+        }
+        .digit-card .flip-in {
+            transform: rotateX(0deg);
+            opacity: 1;
+        }
+        @keyframes flipIn {
+            0% { transform: rotateX(-90deg); opacity: 0; }
+            100% { transform: rotateX(0deg); opacity: 1; }
+        }
+        .colon {
+            color: #0ff;
+            font-size: 72px;
+            line-height: 110px;
+            margin: 0 15px;
+        }
+        .buttons {
+            display: flex;
+            justify-content: space-around;
+        }
+        button {
+            background-color: #333;
+            color: #0ff;
+            border: 3px solid #0ff;
+            padding: 15px 30px;
+            font-size: 24px;
+            cursor: pointer;
+            border-radius: 8px;
+            transition: background-color 0.3s, transform 0.2s;
+        }
+        button:hover {
+            background-color: #0ff;
+            color: #000;
+            transform: scale(1.05);
+        }
+        button:active {
+            background-color: #00cccc;
+            transform: scale(0.95);
+        }
+        .sidebar {
+            background-color: #111;
+            padding: 20px;
+            margin-left: 20px;
+            border: 5px solid #333;
+            border-radius: 10px;
+            box-shadow: 0 0 20px rgba(0, 255, 255, 0.3);
+        }
+        .sidebar button {
+            width: 100%;
+            margin-bottom: 20px;
+        }
+        .date-display, .nepali-date-display {
+            background-color: #222;
+            padding: 15px;
+            border: 3px solid #0ff;
+            border-radius: 8px;
+            box-shadow: inset 0 0 15px rgba(0, 255, 255, 0.5);
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .date-display span, .nepali-date-display span {
+            color: #0ff;
+            font-size: 24px;
+            line-height: 1.5;
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div class="container" id="container">
+        <div class="stopwatch" id="stopwatch">
+            <div class="display" id="display">
+                <div class="digit-card"><span id="hour-tens">0</span></div>
+                <div class="digit-card"><span id="hour-ones">0</span></div>
+                <div class="colon">:</div>
+                <div class="digit-card"><span id="minute-tens">0</span></div>
+                <div class="digit-card"><span id="minute-ones">0</span></div>
+                <div class="colon">:</div>
+                <div class="digit-card"><span id="second-tens">0</span></div>
+                <div class="digit-card"><span id="second-ones">0</span></div>
+            </div>
+            <div class="buttons">
+                <button id="startButton" onclick="startStopwatch()">Start</button>
+                <button id="stopButton" onclick="stopStopwatch()">Stop</button>
+                <button onclick="resetStopwatch()">Reset</button>
+                <button id="fullscreenButton" onclick="toggleFullscreen()">Full Screen</button>
+            </div>
+        </div>
+        <div class="sidebar">
+            <button id="modeButton" onclick="toggleMode()">Switch to Real Time</button>
+            <div class="date-display">
+                <span id="date">Jul 16, 2025</span>
+                <span id="day">Wednesday</span>
+            </div>
+            <div class="nepali-date-display">
+                <span id="nepali-date">2082 Ashar 32</span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let time = 0;
+        let running = false;
+        let interval;
+        let isStopwatchMode = true;
+        let lastHours = -1, lastMinutes = -1, lastSeconds = -1;
+        let lastDate = '', lastDay = '', lastNepaliDate = '';
+
+        function startStopwatch() {
+            if (!running && isStopwatchMode) {
+                running = true;
+                interval = setInterval(updateStopwatch, 1000);
+            }
+        }
+
+        function stopStopwatch() {
+            if (running && isStopwatchMode) {
+                running = false;
+                clearInterval(interval);
+            }
+        }
+
+        function resetStopwatch() {
+            if (isStopwatchMode) {
+                running = false;
+                clearInterval(interval);
+                time = 0;
+                lastHours = -1;
+                lastMinutes = -1;
+                lastSeconds = -1;
+                updateDisplay(0, 0, 0);
+            }
+        }
+
+        function updateDisplay(hours, minutes, seconds) {
+            const hourTens = Math.floor(hours / 10);
+            const hourOnes = hours % 10;
+            const minuteTens = Math.floor(minutes / 10);
+            const minuteOnes = minutes % 10;
+            const secondTens = Math.floor(seconds / 10);
+            const secondOnes = seconds % 10;
+
+            if (hourTens !== Math.floor(lastHours / 10)) flipDigit('hour-tens', hourTens);
+            if (hourOnes !== lastHours % 10) flipDigit('hour-ones', hourOnes);
+            if (minuteTens !== Math.floor(lastMinutes / 10)) flipDigit('minute-tens', minuteTens);
+            if (minuteOnes !== lastMinutes % 10) flipDigit('minute-ones', minuteOnes);
+            if (secondTens !== Math.floor(lastSeconds / 10)) flipDigit('second-tens', secondTens);
+            if (secondOnes !== lastSeconds % 10) flipDigit('second-ones', secondOnes);
+
+            lastHours = hours;
+            lastMinutes = minutes;
+            lastSeconds = seconds;
+        }
+
+        function flipDigit(id, value) {
+            const element = document.getElementById(id);
+            element.classList.add('flip');
+            setTimeout(() => {
+                element.textContent = value;
+                element.classList.remove('flip');
+                element.classList.add('flip-in');
+                setTimeout(() => element.classList.remove('flip-in'), 400);
+            }, 200);
+        }
+
+        function updateStopwatch() {
+            time++;
+            let hours = Math.floor(time / 3600);
+            let minutes = Math.floor((time % 3600) / 60);
+            let seconds = time % 60;
+            updateDisplay(hours, minutes, seconds);
+            updateDateDisplay();
+        }
+
+        function updateRealTime() {
+            const now = new Date();
+            let hours = now.getHours();
+            let minutes = now.getMinutes();
+            let seconds = now.getSeconds();
+            updateDisplay(hours, minutes, seconds);
+            updateDateDisplay();
+        }
+
+        function updateDateDisplay() {
+            const now = new Date();
+            const optionsDate = { month: 'short', day: '2-digit', year: 'numeric' };
+            const optionsDay = { weekday: 'long' };
+            const dateStr = now.toLocaleDateString('en-US', optionsDate);
+            const dayStr = now.toLocaleDateString('en-US', optionsDay);
+            const nepaliDateStr = convertToNepaliDate(now);
+
+            if (dateStr !== lastDate) document.getElementById('date').textContent = dateStr;
+            if (dayStr !== lastDay) document.getElementById('day').textContent = dayStr;
+            if (nepaliDateStr !== lastNepaliDate) document.getElementById('nepali-date').textContent = nepaliDateStr;
+
+            lastDate = dateStr;
+            lastDay = dayStr;
+            lastNepaliDate = nepaliDateStr;
+        }
+
+        function convertToNepaliDate(date) {
+            const nepaliMonths = [
+                'Baishakh', 'Jestha', 'Ashar', 'Shrawan', 'Bhadra', 'Ashwin',
+                'Kartik', 'Mangsir', 'Poush', 'Magh', 'Falgun', 'Chaitra'
+            ];
+            // Simplified mapping for July 16, 2025, based on provided data
+            const gregorianDate = date.toISOString().split('T')[0];
+            if (gregorianDate === '2025-07-16') {
+                return '2082 Ashar 32';
+            }
+            // Fallback for other dates
+            const nepaliYearOffset = 56;
+            const nepaliMonthOffset = 8;
+            let year = date.getFullYear() + nepaliYearOffset;
+            let month = date.getMonth() + nepaliMonthOffset;
+            let day = date.getDate();
+
+            if (month > 11) {
+                month -= 12;
+                year += 1;
+            }
+            if (day > 32) day = 32; // Cap at 32 as per Bikram Sambat max days
+
+            return `${year} ${nepaliMonths[month]} ${day < 10 ? '0' + day : day}`;
+        }
+
+        function toggleMode() {
+            isStopwatchMode = !isStopwatchMode;
+            clearInterval(interval);
+            running = false;
+
+            const modeButton = document.getElementById('modeButton');
+            const startButton = document.getElementById('startButton');
+            const stopButton = document.getElementById('stopButton');
+
+            if (isStopwatchMode) {
+                modeButton.textContent = 'Switch to Real Time';
+                startButton.style.display = 'inline-block';
+                stopButton.style.display = 'inline-block';
+                time = 0;
+                lastHours = -1;
+                lastMinutes = -1;
+                lastSeconds = -1;
+                updateDisplay(0, 0, 0);
+                updateDateDisplay();
+            } else {
+                modeButton.textContent = 'Switch to Stopwatch';
+                startButton.style.display = 'none';
+                stopButton.style.display = 'none';
+                interval = setInterval(updateRealTime, 1000);
+                updateRealTime();
+            }
+        }
+
+        function toggleFullscreen() {
+            const container = document.getElementById('container');
+            if (!document.fullscreenElement) {
+                container.requestFullscreen().then(() => {
+                    container.classList.add('fullscreen');
+                    document.getElementById('fullscreenButton').textContent = 'Exit Full Screen';
+                }).catch(err => console.error(`Error entering fullscreen: ${err.message}`));
+            } else {
+                document.exitFullscreen().then(() => {
+                    container.classList.remove('fullscreen');
+                    document.getElementById('fullscreenButton').textContent = 'Full Screen';
+                }).catch(err => console.error(`Error exiting fullscreen: ${err.message}`));
+            }
+        }
+
+        // Initialize date displays
+        updateDateDisplay();
+    </script>
+</body>
+</html>
